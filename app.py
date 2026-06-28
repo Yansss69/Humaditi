@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw, ImageFont
 import io
 
@@ -26,7 +26,8 @@ if st.button("🔄 Perbarui Data Cuaca"):
 
 # --- LOGIKA UTAMA ---
 url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&current=temperature_2m&hourly=relative_humidity_2m&forecast_days=1"
-jam_sekarang_obj = datetime.now()
+wib = timezone(timedelta(hours=7))
+jam_sekarang_obj = datetime.now(wib)
 
 try:
     respons = requests.get(url).json()
