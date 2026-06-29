@@ -454,7 +454,7 @@ draw.rounded_rectangle(
     ),
     radius=45,
     fill=CARD,
-    outline=CARD2,
+    outline=(255,255,255,35),
     width=2
 )
 
