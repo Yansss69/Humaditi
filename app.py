@@ -4,127 +4,74 @@ from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-# --- KELOLA HALAMAN WEB (Tampilan Dark Mode & Judul di Browser) ---
+# --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Weather Graph App", page_icon="💧", layout="centered")
 
-# Menggunakan CSS bawaan Streamlit agar tampilan web-app nya hitam pekat minimalis
 st.markdown("""
     <style>
     .stApp { background-color: #000000; color: #ffffff; }
-    iframe { background-color: transparent !important; }
     footer {visibility: hidden;}
     header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
 st.title("💧 Minimalist Weather App")
-st.write("Aplikasi pemantau kelembapan real-time dengan desain clean.")
 
-# --- TOMBOL REFRESH DATA ---
-if st.button("🔄 Perbarui Data Cuaca"):
+# --- LOGIKA DATA ---
+@st.cache_data(ttl=3600)
+def fetch_weather_data():
+    url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&current=temperature_2m&hourly=relative_humidity_2m&forecast_days=1"
+    try:
+        respons = requests.get(url).json()
+        return respons["hourly"]["relative_humidity_2m"][:10]
+    except:
+        return [71, 69, 69, 70, 73, 77, 77, 82, 87, 90]
+
+wib = timezone(timedelta(hours=7))
+jam_sekarang = datetime.now(wib)
+kelembapan_list = fetch_weather_data()
+waktu_list = [jam_sekarang + timedelta(hours=i) for i in range(10)]
+
+# --- GENERASI GAMBAR ---
+def create_weather_image(humidity_data, time_data):
+    lebar, tinggi = 1080, 1350
+    kanvas = Image.new("RGBA", (lebar, tinggi), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(kanvas)
+    
+    # Font
+    f_besar = ImageFont.load_default(size=160)
+    f_sedang = ImageFont.load_default(size=45)
+    f_kecil_b = ImageFont.load_default(size=28)
+    f_kecil_r = ImageFont.load_default(size=26)
+    
+    # Header & Teks Utama
+    draw.text((80, 150), "SUKABUMI REGENCY", fill=(255, 255, 255, 120), font=f_sedang)
+    rata_rata = int(sum(humidity_data) / len(humidity_data))
+    draw.text((80, 470), f"{rata_rata}%", fill=(255, 255, 255, 255), font=f_besar)
+    draw.text((80, 400), "Today's average humidity", fill=(255, 255, 255, 150), font=f_sedang)
+
+    # Grafik Batang
+    start_x, jarak, lebar_b, y_dasar, t_max = 95, 98, 32, 930, 220
+    for i, p in enumerate(humidity_data):
+        x1 = start_x + (i * jarak)
+        y1 = y_dasar - ((p / 100) * t_max)
+        draw.rounded_rectangle([x1, y1, x1 + lebar_b, y_dasar], radius=16, fill=(240, 240, 240, 255))
+        
+        # Label
+        pusat_x = x1 + (lebar_b / 2)
+        draw.text((pusat_x, y_dasar + 30), f"{p}%", fill="white", font=f_kecil_b, anchor="ma")
+        label = "Now" if i == 0 else time_data[i].strftime("%H.00")
+        draw.text((pusat_x, y_dasar + 70), label, fill=(255, 255, 255, 140), font=f_kecil_r, anchor="ma")
+
+    return kanvas
+
+# --- TAMPILAN WEB ---
+img = create_weather_image(kelembapan_list, waktu_list)
+st.image(img, use_container_width=True)
+
+if st.button("🔄 Perbarui Data"):
     st.rerun()
 
-# --- LOGIKA UTAMA ---
-url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&current=temperature_2m&hourly=relative_humidity_2m&forecast_days=1"
-wib = timezone(timedelta(hours=7))
-jam_sekarang_obj = datetime.now(wib)
-
-try:
-    respons = requests.get(url).json()
-    kelembapan_list = respons["hourly"]["relative_humidity_2m"][:10]
-    waktu_list = [jam_sekarang_obj + timedelta(hours=i) for i in range(10)]
-except Exception as e:
-    kelembapan_list = [71, 69, 69, 70, 73, 77, 77, 82, 87, 90]
-    waktu_list = [jam_sekarang_obj + timedelta(hours=i) for i in range(10)]
-
-# Set dimensi gambar
-lebar, height = 1080, 1350
-# Kanvas dibuat transparan murni agar menyatu dengan background app
-kanvas = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
-
-# Load Font menggunakan ukuran kustom (aman untuk server cloud)
-font_SUPER_BESAR = ImageFont.load_default(size=160)
-font_sedang = ImageFont.load_default(size=45)
-font_kecil_bold = ImageFont.load_default(size=28)
-font_kecil_regular = ImageFont.load_default(size=26)
-font_header_lokasi = ImageFont.load_default(size=32)
-
-gambar_teks = ImageDraw.Draw(kanvas)
-
-# Teks Header Kota
-nama_kota = "SUKABUMI REGENCY"
-gambar_teks.text((80, 150), nama_kota, fill=(255, 255, 255, 120), font=font_header_lokasi)
-
-# Teks Utama
-rata_rata = int(sum(kelembapan_list) / len(kelembapan_list))
-cx, cy = 95, 345  
-r_drop = 11       
-
-gambar_teks.ellipse([cx - r_drop, cy - r_drop + 6, cx + r_drop, cy + r_drop + 6], fill=(255, 255, 255, 255))
-gambar_teks.polygon([(cx, cy - 18), (cx - r_drop + 1, cy + 2), (cx + r_drop - 1, cy + 2)], fill=(255, 255, 255, 255))
-
-gambar_teks.text((130, 322), "Humidity", fill=(255, 255, 255, 255), font=font_sedang)
-gambar_teks.text((80, 400), "Today's average", fill=(255, 255, 255, 150), font=font_sedang)
-gambar_teks.text((80, 470), f"{rata_rata}%", fill=(255, 255, 255, 255), font=font_SUPER_BESAR)
-
-# Grafik Batang
-layer_batang = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
-gambar_batang = ImageDraw.Draw(layer_batang)
-masker = Image.new("L", (lebar, height), 255)
-gambar_masker = ImageDraw.Draw(masker)
-
-start_x = 95
-jarak = 98
-lebar_batang = 32
-garis_bawah_y = 930    
-tinggi_maksimal = 220  
-
-for i, persen in enumerate(kelembapan_list):
-    x1 = start_x + (i * jarak)
-    x2 = x1 + lebar_batang
-    pusat_x = (x1 + x2) / 2
-    
-    tinggi_aktual = (persen / 100) * tinggi_maksimal
-    y1 = garis_bawah_y - tinggi_aktual
-    y2 = garis_bawah_y
-    
-    gambar_batang.rounded_rectangle([x1, y1, x2, y2], radius=16, fill=(240, 240, 240, 255))
-    
-    pusat_y = y1 + 16
-    r = 5
-    gambar_masker.ellipse([pusat_x - r, pusat_y - r, pusat_x + r, pusat_y + r], fill=0)
-    
-    teks_persen = f"{persen}%"
-    gambar_teks.text((pusat_x, garis_bawah_y + 30), teks_persen, fill=(255, 255, 255, 255), font=font_kecil_bold, anchor="ma")
-    
-    if i == 0:
-        label_jam = "Now"
-    else:
-        label_jam = waktu_list[i].strftime("%H.00")
-        
-    gambar_teks.text((pusat_x, garis_bawah_y + 70), label_jam, fill=(255, 255, 255, 140), font=font_kecil_regular, anchor="ma")
-
-batang_berlubang = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
-batang_berlubang.paste(layer_batang, (0, 0), mask=masker)
-kanvas.paste(batang_berlubang, (0, 0), mask=batang_berlubang)
-
-# Watermark
-wm_x_pusat = lebar / 2
-wm_y = 1220
-gambar_teks.text((wm_x_pusat - 50, wm_y), "archive by", fill=(255, 255, 255, 100), font=font_kecil_regular, anchor="ma")
-gambar_teks.text((wm_x_pusat + 60, wm_y), "Andrian", fill=(255, 255, 255, 220), font=font_kecil_bold, anchor="ma")
-
-# --- MENAMPILKAN HASIL DI WEB-APP ---
-st.image(kanvas, use_container_width=True)
-
-# Sediakan Tombol Download Gambar Langsung di Aplikasi Web
 buf = io.BytesIO()
-kanvas.save(buf, format="PNG")
-byte_im = buf.getvalue()
-
-st.download_button(
-    label="📥 Download Gambar PNG",
-    data=byte_im,
-    file_name="Grafik_Cuaca_Andrian.png",
-    mime="image/png"
-)
+img.save(buf, format="PNG")
+st.download_button("📥 Download PNG", buf.getvalue(), "Grafik_Cuaca.png", "image/png")
