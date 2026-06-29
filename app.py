@@ -4,46 +4,47 @@ from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-# ... (CSS dan Setup sama seperti sebelumnya) ...
+# Setup halaman
+st.set_page_config(page_title="Weather App", layout="centered")
+st.markdown("<style>.stApp { background-color: #000000; color: #ffffff; }</style>", unsafe_allow_html=True)
 
 @st.cache_data(ttl=3600)
 def fetch_weather_data():
-    # Menambahkan uv_index_max ke dalam parameter API
-    url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&current=temperature_2m&hourly=relative_humidity_2m,uv_index&forecast_days=1"
+    url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&hourly=relative_humidity_2m,uv_index&forecast_days=1"
     try:
-        respons = requests.get(url).json()
-        data = {
-            "humidity": respons["hourly"]["relative_humidity_2m"][:10],
-            "uv": respons["hourly"]["uv_index"][:10]
-        }
-        return data
+        r = requests.get(url).json()
+        return {"humidity": r["hourly"]["relative_humidity_2m"][:10], "uv": r["hourly"]["uv_index"][:10]}
     except:
-        return {"humidity": [71]*10, "uv": [5, 5, 5, 3, 2, 0, 0, 0, 0, 0]}
+        return {"humidity": [70]*10, "uv": [2]*10}
 
-# ... (Logika waktu tetap sama) ...
-
-def create_weather_image(data, time_data):
-    lebar, tinggi = 1080, 1600 # Tinggi ditambah untuk memuat UV
+def create_weather_image(data):
+    lebar, tinggi = 1080, 1600
     kanvas = Image.new("RGBA", (lebar, tinggi), (0, 0, 0, 0))
     draw = ImageDraw.Draw(kanvas)
-    f_sedang = ImageFont.load_default(size=45)
-    f_kecil_b = ImageFont.load_default(size=28)
+    # Gunakan font default tanpa argumen size agar tidak error
+    font = ImageFont.load_default() 
     
-    # ... (Bagian Humidity tetap sama, gunakan y_dasar=930) ...
+    # Header
+    draw.text((80, 100), "SUKABUMI REGENCY", fill="white", font=font)
+    
+    # Menggambar Humidity
+    start_x, jarak = 95, 98
+    for i, h in enumerate(data["humidity"]):
+        draw.rounded_rectangle([start_x + (i * jarak), 400, start_x + (i * jarak) + 32, 600], radius=16, fill="white")
+        draw.text((start_x + (i * jarak) + 16, 620), f"{h}%", fill="white", font=font, anchor="ma")
 
-    # --- BAGIAN UV INDEX ---
-    y_uv_start = 1050
-    draw.text((80, y_uv_start), "UV Index", fill="white", font=f_sedang)
-    
-    start_x, jarak, lebar_b, y_uv_dasar, t_max = 95, 98, 32, 1400, 150
+    # Menggambar UV
+    draw.text((80, 800), "UV Index", fill="white", font=font)
     for i, uv in enumerate(data["uv"]):
-        x1 = start_x + (i * jarak)
-        # Warna UV dinamis berdasarkan indeks
         warna = (255, 200, 0) if uv > 2 else (100, 255, 150)
-        y1 = y_uv_dasar - (uv * 15) # Skala UV
-        draw.rounded_rectangle([x1, y1, x1 + lebar_b, y_uv_dasar], radius=16, fill=warna)
-        draw.text((x1 + 16, y_uv_dasar + 30), str(uv), fill="white", font=f_kecil_b, anchor="ma")
-
+        draw.rounded_rectangle([start_x + (i * jarak), 900, start_x + (i * jarak) + 32, 1100], radius=16, fill=warna)
+        draw.text((start_x + (i * jarak) + 16, 1120), str(uv), fill="white", font=font, anchor="ma")
+    
     return kanvas
 
-# ... (Tampilkan hasil image dan download button tetap sama) ...
+# Eksekusi
+data = fetch_weather_data()
+img = create_weather_image(data)
+st.image(img, use_container_width=True)
+
+if st.button("Refresh"): st.rerun()
