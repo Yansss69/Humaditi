@@ -16,13 +16,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("💧 Minimalist Weather App")
-st.write("Aplikasi pemantau kelembapan real-time dengan desain clean.")
-
-if st.button("🔄 Perbarui Data Cuaca"):
-    st.rerun()
-
-# --- LOGIKA UTAMA ---
+# --- LOGIKA DATA ---
 url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&current=temperature_2m&hourly=relative_humidity_2m&forecast_days=1"
 wib = timezone(timedelta(hours=7))
 jam_sekarang_obj = datetime.now(wib)
@@ -66,8 +60,6 @@ gambar_teks.text((80, 470), f"{rata_rata}%", fill=(255, 255, 255, 255), font=fon
 # Grafik Batang
 layer_batang = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
 gambar_batang = ImageDraw.Draw(layer_batang)
-masker = Image.new("L", (lebar, height), 255)
-gambar_masker = ImageDraw.Draw(masker)
 
 start_x, jarak, lebar_batang, garis_bawah_y, tinggi_maksimal = 95, 98, 32, 930, 220
 
@@ -91,9 +83,13 @@ kanvas.paste(layer_batang, (0, 0))
 gambar_teks.text((lebar/2 - 50, 1220), "archive by", fill=(255, 255, 255, 100), font=font_kecil_regular, anchor="ma")
 gambar_teks.text((lebar/2 + 60, 1220), "Andrian", fill=(255, 255, 255, 220), font=font_kecil_bold, anchor="ma")
 
+# --- MENAMPILKAN HASIL ---
 st.image(kanvas, use_container_width=True)
 
-# Tombol Download
+# Tombol Refresh & Download
+if st.button("🔄 Perbarui Data Cuaca"):
+    st.rerun()
+
 buf = io.BytesIO()
 kanvas.save(buf, format="PNG")
 st.download_button("📥 Download Gambar PNG", data=buf.getvalue(), file_name="Grafik_Cuaca_Andrian.png", mime="image/png")
