@@ -22,7 +22,7 @@ st.write("Aplikasi pemantau kelembapan real-time untuk Cicurug.")
 if st.button("🔄 Perbarui Data Cuaca"):
     st.rerun()
 
-# --- LOGIKA DATA (Cicurug: -6.7865, 106.7725) ---
+# --- LOGIKA DATA ---
 url = "https://api.open-meteo.com/v1/forecast?latitude=-6.7865&longitude=106.7725&current=temperature_2m&hourly=relative_humidity_2m&forecast_days=1"
 wib = timezone(timedelta(hours=7))
 jam_sekarang_obj = datetime.now(wib)
@@ -38,13 +38,14 @@ except Exception:
 # --- LOAD FONT ---
 font_path = "Inter-Bold.ttf"
 if os.path.exists(font_path):
+    # Menggunakan font eksternal
     font_SUPER_BESAR = ImageFont.truetype(font_path, 160)
     font_sedang = ImageFont.truetype(font_path, 45)
     font_kecil_bold = ImageFont.truetype(font_path, 28)
     font_kecil_regular = ImageFont.truetype(font_path, 26)
     font_header_lokasi = ImageFont.truetype(font_path, 32)
 else:
-    st.warning("File font 'Inter-Bold.ttf' tidak ditemukan, menggunakan font default.")
+    # Fallback jika file tidak ada
     font_SUPER_BESAR = ImageFont.load_default()
     font_sedang = ImageFont.load_default()
     font_kecil_bold = ImageFont.load_default()
@@ -56,10 +57,8 @@ lebar, height = 1080, 1350
 kanvas = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
 gambar_teks = ImageDraw.Draw(kanvas)
 
-# Header
+# Header & Statistik
 gambar_teks.text((80, 150), "CICURUG, SUKABUMI", fill=(255, 255, 255, 120), font=font_header_lokasi)
-
-# Statistik Utama
 rata_rata = int(sum(kelembapan_list) / len(kelembapan_list))
 gambar_teks.text((130, 322), "Humidity", fill=(255, 255, 255, 255), font=font_sedang)
 gambar_teks.text((80, 400), "Today's average", fill=(255, 255, 255, 150), font=font_sedang)
@@ -72,14 +71,11 @@ masker = Image.new("L", (lebar, height), 255)
 gambar_masker = ImageDraw.Draw(masker)
 
 start_x, jarak, lebar_batang, garis_bawah_y, tinggi_maksimal = 95, 98, 32, 930, 220
-
 for i, persen in enumerate(kelembapan_list):
     x1 = start_x + (i * jarak)
     x2 = x1 + lebar_batang
     y1 = garis_bawah_y - ((persen / 100) * tinggi_maksimal)
-    
     gambar_batang.rounded_rectangle([x1, y1, x2, garis_bawah_y], radius=16, fill=(240, 240, 240, 255))
-    
     label_jam = "Now" if i == 0 else waktu_list[i].strftime("%H.00")
     gambar_teks.text(((x1 + x2) / 2, garis_bawah_y + 30), f"{persen}%", fill=(255, 255, 255, 255), font=font_kecil_bold, anchor="ma")
     gambar_teks.text(((x1 + x2) / 2, garis_bawah_y + 70), label_jam, fill=(255, 255, 255, 140), font=font_kecil_regular, anchor="ma")
@@ -88,3 +84,11 @@ kanvas.paste(layer_batang, (0, 0), mask=masker)
 
 # Footer
 gambar_teks.text((lebar/2 - 50, 1220), "archive by", fill=(255, 255, 255, 100), font=font_kecil_regular, anchor="ma")
+gambar_teks.text((lebar/2 + 60, 1220), "Andrian", fill=(255, 255, 255, 220), font=font_kecil_bold, anchor="ma")
+
+# --- MENAMPILKAN HASIL (Bagian yang hilang di skrip Anda sebelumnya) ---
+st.image(kanvas, use_container_width=True)
+
+buf = io.BytesIO()
+kanvas.save(buf, format="PNG")
+st.download_button("📥 Download Gambar PNG", buf.getvalue(), "Grafik_Cuaca_Cicurug.png", "image/png")
