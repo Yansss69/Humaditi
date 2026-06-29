@@ -22,7 +22,7 @@ st.write("Aplikasi pemantau kelembapan & angin real-time untuk Cicurug.")
 if st.button("🔄 Perbarui Data Cuaca"):
     st.rerun()
 
-# --- LOGIKA DATA (Cicurug: -6.7865, 106.7725) ---
+# --- LOGIKA DATA ---
 url = "https://api.open-meteo.com/v1/forecast?latitude=-6.7865&longitude=106.7725&current=wind_speed_10m&hourly=relative_humidity_2m&forecast_days=1"
 wib = timezone(timedelta(hours=7))
 jam_sekarang_obj = datetime.now(wib)
@@ -46,6 +46,7 @@ if os.path.exists(font_path):
     font_kecil_regular = ImageFont.truetype(font_path, 26)
     font_header_lokasi = ImageFont.truetype(font_path, 32)
 else:
+    # Menggunakan load_default yang lebih aman tanpa argumen ukuran
     font_SUPER_BESAR = ImageFont.load_default()
     font_sedang = ImageFont.load_default()
     font_kecil_bold = ImageFont.load_default()
@@ -60,7 +61,7 @@ gambar_teks = ImageDraw.Draw(kanvas)
 # Header
 gambar_teks.text((80, 150), "CICURUG, SUKABUMI", fill=(255, 255, 255, 120), font=font_header_lokasi)
 
-# Teks Utama (Humidity + Wind Speed)
+# Teks Utama
 rata_rata = int(sum(kelembapan_list) / len(kelembapan_list))
 gambar_teks.text((130, 322), "Humidity", fill=(255, 255, 255, 255), font=font_sedang)
 gambar_teks.text((130, 375), f"Wind Speed: {wind_speed} km/h", fill=(255, 255, 255, 180), font=font_kecil_bold)
@@ -81,15 +82,15 @@ for i, persen in enumerate(kelembapan_list):
     y1 = garis_bawah_y - ((persen / 100) * tinggi_maksimal)
     gambar_batang.rounded_rectangle([x1, y1, x2, garis_bawah_y], radius=16, fill=(240, 240, 240, 255))
     
+    # Menghapus argumen anchor agar kompatibel di semua versi PIL
     label_jam = "Now" if i == 0 else waktu_list[i].strftime("%H.00")
-    gambar_teks.text(((x1 + x2) / 2, garis_bawah_y + 30), f"{persen}%", fill=(255, 255, 255, 255), font=font_kecil_bold, anchor="ma")
-    gambar_teks.text(((x1 + x2) / 2, garis_bawah_y + 70), label_jam, fill=(255, 255, 255, 140), font=font_kecil_regular, anchor="ma")
+    gambar_teks.text(((x1 + x2) / 2 - 20, garis_bawah_y + 30), f"{persen}%", fill=(255, 255, 255, 255), font=font_kecil_bold)
+    gambar_teks.text(((x1 + x2) / 2 - 20, garis_bawah_y + 70), label_jam, fill=(255, 255, 255, 140), font=font_kecil_regular)
 
 kanvas.paste(layer_batang, (0, 0), mask=masker)
 
 # Footer
-gambar_teks.text((lebar/2 - 50, 1220), "archive by", fill=(255, 255, 255, 100), font=font_kecil_regular, anchor="ma")
-gambar_teks.text((lebar/2 + 60, 1220), "Andrian", fill=(255, 255, 255, 220), font=font_kecil_bold, anchor="ma")
+gambar_teks.text((lebar/2 - 50, 1220), "archive by Andrian", fill=(255, 255, 255, 150), font=font_kecil_regular)
 
 # --- TAMPILAN ---
 st.image(kanvas, use_container_width=True)
