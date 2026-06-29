@@ -4,43 +4,50 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-# --- CSS MINIMALIS ---
+st.set_page_config(page_title="Weather App", layout="centered")
 st.markdown("<style>.stApp { background-color: #000000; color: #ffffff; }</style>", unsafe_allow_html=True)
 
 @st.cache_data(ttl=3600)
 def fetch_weather_data():
-    url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&hourly=relative_humidity_2m,uv_index&forecast_days=1"
+    url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&current=temperature_2m&hourly=relative_humidity_2m,uv_index,weather_code&forecast_days=1"
     try:
         r = requests.get(url).json()
-        return {"h": r["hourly"]["relative_humidity_2m"][:10], "uv": r["hourly"]["uv_index"][:10]}
+        return {
+            "h": r["hourly"]["relative_humidity_2m"][:10],
+            "uv": r["hourly"]["uv_index"][:10],
+            "temp": r["current"]["temperature_2m"]
+        }
     except:
-        return {"h": [70]*10, "uv": [2]*10}
+        return {"h": [70]*10, "uv": [2]*10, "temp": 28}
 
-def draw_chart(draw, data, y_pos, color, is_humidity=True):
-    # Disesuaikan agar jarak dan lebar lebih ramping
-    start_x, jarak = 70, 95
-    font = ImageFont.load_default()
+# --- FUNGSI GRAFIS ---
+def draw_chart(data, color, is_humidity=True):
+    img = Image.new("RGBA", (1080, 300), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    start_x, jarak = 60, 100
     for i, val in enumerate(data):
         x = start_x + (i * jarak)
-        h = (val / 100) * 200
-        # Lebar balok diperkecil jadi 25 agar ramping
-        draw.rounded_rectangle([x, y_pos - h, x + 25, y_pos], radius=12, fill=color)
-        
+        h = (val / 100) * 150
+        # Balok
+        draw.rounded_rectangle([x, 200 - h, x + 30, 200], radius=15, fill=color)
+        # Detail Tetesan Air
         if is_humidity:
-            # Lubang diperkecil agar proporsional
-            draw.ellipse([x+8, y_pos - h + 8, x+17, y_pos - h + 17], fill="black")
-            
-        jam = (datetime.now().hour + i) % 24
-        draw.text((x-5, y_pos + 20), f"{jam:02d}.00", fill="white", font=font)
+            # Lingkaran kecil di atas balok untuk kesan tetesan air
+            draw.ellipse([x+8, 200 - h - 10, x+22, 200 - h + 4], fill="white")
+    return img
 
-# --- GENERASI GAMBAR ---
+# --- TAMPILAN WEB ---
 data = fetch_weather_data()
-img = Image.new("RGBA", (1080, 800), (0, 0, 0, 0))
-draw = ImageDraw.Draw(img)
+st.title("SUKABUMI REGENCY")
+st.metric("Temperature Sekarang", f"{data['temp']}°C")
 
-# Teks di luar agar lebih tajam (menggunakan markdown di bawah)
-draw.text((70, 20), "SUKABUMI REGENCY", fill="white", font=ImageFont.load_default())
-draw_chart(draw, data["h"], 300, "white", is_humidity=True)
-draw_chart(draw, data["uv"], 650, "yellow", is_humidity=False)
+st.subheader("Humidity (%)")
+st.image(draw_chart(data["h"], "white", True), use_container_width=True)
 
-st.image(img, use_container_width=True)
+st.subheader("UV Index")
+st.image(draw_chart(data["uv"], "#FFD700", False), use_container_width=True)
+
+# Footer Detail
+st.write("---")
+st.caption("Data diperbarui setiap jam dari Open-Meteo API.")
+if st.button("🔄 Perbarui"): st.rerun()
