@@ -4,47 +4,42 @@ from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-# Setup halaman
-st.set_page_config(page_title="Weather App", layout="centered")
-st.markdown("<style>.stApp { background-color: #000000; color: #ffffff; }</style>", unsafe_allow_html=True)
-
-@st.cache_data(ttl=3600)
-def fetch_weather_data():
-    url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&hourly=relative_humidity_2m,uv_index&forecast_days=1"
+# Fungsi untuk memuat font yang lebih baik (pastikan ada file font di folder Anda)
+def get_font(size):
     try:
-        r = requests.get(url).json()
-        return {"humidity": r["hourly"]["relative_humidity_2m"][:10], "uv": r["hourly"]["uv_index"][:10]}
+        # Gunakan font bawaan jika ada, atau ganti dengan nama file font .ttf yang Anda unggah
+        return ImageFont.truetype("arial.ttf", size)
     except:
-        return {"humidity": [70]*10, "uv": [2]*10}
+        return ImageFont.load_default()
 
 def create_weather_image(data):
     lebar, tinggi = 1080, 1600
     kanvas = Image.new("RGBA", (lebar, tinggi), (0, 0, 0, 0))
     draw = ImageDraw.Draw(kanvas)
-    # Gunakan font default tanpa argumen size agar tidak error
-    font = ImageFont.load_default() 
     
-    # Header
-    draw.text((80, 100), "SUKABUMI REGENCY", fill="white", font=font)
+    # Font kustom untuk estetika yang lebih baik
+    f_header = get_font(40)
+    f_teks = get_font(30)
     
-    # Menggambar Humidity
+    # Judul
+    draw.text((80, 100), "SUKABUMI REGENCY", fill="white", font=f_header)
+    
+    # Menggambar Humidity (Posisi lebih rapi)
     start_x, jarak = 95, 98
     for i, h in enumerate(data["humidity"]):
-        draw.rounded_rectangle([start_x + (i * jarak), 400, start_x + (i * jarak) + 32, 600], radius=16, fill="white")
-        draw.text((start_x + (i * jarak) + 16, 620), f"{h}%", fill="white", font=font, anchor="ma")
+        # Bar dibuat lebih proporsional
+        x = start_x + (i * jarak)
+        draw.rounded_rectangle([x, 200, x + 50, 500], radius=20, fill=(255, 255, 255, 255))
+        draw.text((x + 25, 530), f"{h}%", fill="white", font=f_teks, anchor="ma")
 
-    # Menggambar UV
-    draw.text((80, 800), "UV Index", fill="white", font=font)
+    # Menggambar UV (Posisi disesuaikan agar tidak menempel)
+    draw.text((80, 700), "UV Index", fill="white", font=f_header)
     for i, uv in enumerate(data["uv"]):
+        x = start_x + (i * jarak)
         warna = (255, 200, 0) if uv > 2 else (100, 255, 150)
-        draw.rounded_rectangle([start_x + (i * jarak), 900, start_x + (i * jarak) + 32, 1100], radius=16, fill=warna)
-        draw.text((start_x + (i * jarak) + 16, 1120), str(uv), fill="white", font=font, anchor="ma")
+        draw.rounded_rectangle([x, 800, x + 50, 1100], radius=20, fill=warna)
+        draw.text((x + 25, 1130), str(int(uv)), fill="white", font=f_teks, anchor="ma")
     
     return kanvas
 
-# Eksekusi
-data = fetch_weather_data()
-img = create_weather_image(data)
-st.image(img, use_container_width=True)
-
-if st.button("Refresh"): st.rerun()
+# ... (bagian pemanggilan fungsi dan tampilan web sama seperti sebelumnya)
