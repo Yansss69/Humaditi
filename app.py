@@ -1,19 +1,28 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont # <-- INI YANG KURANG TADI
+from PIL import Image, ImageDraw, ImageFont
+import os
 
-st.set_page_config(page_title="Weather Test", layout="centered")
-st.title(" Weather iOS - TEST FIXED")
+st.set_page_config(page_title="Weather iOS", layout="centered")
+st.title(" Weather iOS")
 
 W, H = 1080, 1920
 img = Image.new("RGB", (W, H), "black")
 d = ImageDraw.Draw(img)
 
-font = ImageFont.load_default() # Sekarang udah ke-import, gak error lagi
+# KUNCI: Load font dari file .ttf yang kita upload
+font_path = "Inter-Bold.ttf" 
+try:
+    FONT_BIG = ImageFont.truetype(font_path, 180) # Suhu gede
+    FONT_SUB = ImageFont.truetype(font_path, 42)  # Kota
+    FONT_SMALL = ImageFont.truetype(font_path, 28) # Keterangan
+except:
+    st.error(f"File {font_path} gak ketemu. Upload ke GitHub ya.")
+    st.stop()
 
-d.text((100, 500), "28°", fill="white", font=font)
-d.text((100, 700), "SUKABUMI", fill="gray", font=font)
-d.text((100, 900), "UDAH JALAN NIH", fill="lime", font=font)
-d.text((100, 1000), "MAAF TADI LUPA IMPORT", fill="lime", font=font)
+# Gambar
+d.text((70, 120), "28°", fill="white", font=FONT_BIG)
+d.text((70, 330), "SUKABUMI REGENCY", fill=(255,255,255,150), font=FONT_SUB)
+d.text((70, 400), "Partly Cloudy  Humidity 73%", fill=(255,255,255,150), font=FONT_SMALL)
+d.text((70, 1700), "Udah Gede & Gak Error", fill="lime", font=FONT_SUB)
 
 st.image(img, use_container_width=True)
-st.success("Gak ada error font lagi!")
