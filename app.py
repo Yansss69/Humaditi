@@ -1,130 +1,110 @@
-import streamlit as st
-import requests
-from datetime import datetime, timedelta, timezone
-from PIL import Image, ImageDraw, ImageFont
-import io
-
-# --- KELOLA HALAMAN WEB (Tampilan Dark Mode & Judul di Browser) ---
-st.set_page_config(page_title="Weather Graph App", page_icon="💧", layout="centered")
-
-# Menggunakan CSS bawaan Streamlit agar tampilan web-app nya hitam pekat minimalis
-st.markdown("""
-    <style>
-    .stApp { background-color: #000000; color: #ffffff; }
-    iframe { background-color: transparent !important; }
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("💧 Minimalist Weather App")
-st.write("Aplikasi pemantau kelembapan real-time dengan desain clean.")
-
-# --- TOMBOL REFRESH DATA ---
-if st.button("🔄 Perbarui Data Cuaca"):
-    st.rerun()
-
-# --- LOGIKA UTAMA ---
-url = "https://api.open-meteo.com/v1/forecast?latitude=-6.9181&longitude=106.9266&current=temperature_2m&hourly=relative_humidity_2m&forecast_days=1"
-wib = timezone(timedelta(hours=7))
-jam_sekarang_obj = datetime.now(wib)
-
+url = (
+    "https://api.open-meteo.com/v1/forecast?"
+    "latitude=-6.9181"
+    "&longitude=106.9266"
+    "&current=temperature_2m"
+    "&hourly=relative_humidity_2m,uv_index"
+    "&forecast_days=1"
+)
 try:
     respons = requests.get(url).json()
+
     kelembapan_list = respons["hourly"]["relative_humidity_2m"][:10]
-    waktu_list = [jam_sekarang_obj + timedelta(hours=i) for i in range(10)]
-except Exception as e:
-    kelembapan_list = [71, 69, 69, 70, 73, 77, 77, 82, 87, 90]
-    waktu_list = [jam_sekarang_obj + timedelta(hours=i) for i in range(10)]
+    uv_list = respons["hourly"]["uv_index"][:10]
 
-# Set dimensi gambar
-lebar, height = 1080, 1350
-# Kanvas dibuat transparan murni agar menyatu dengan background app
-kanvas = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
+    waktu_list = [
+        jam_sekarang_obj + timedelta(hours=i)
+        for i in range(10)
+    ]
 
-# Load Font menggunakan ukuran kustom (aman untuk server cloud)
-font_SUPER_BESAR = ImageFont.load_default(size=160)
-font_sedang = ImageFont.load_default(size=45)
-font_kecil_bold = ImageFont.load_default(size=28)
-font_kecil_regular = ImageFont.load_default(size=26)
-font_header_lokasi = ImageFont.load_default(size=32)
+except:
+    kelembapan_list = [71,69,69,70,73,77,77,82,87,90]
+    uv_list = [5,5,5,3,2,0,0,0,0,0]
 
-gambar_teks = ImageDraw.Draw(kanvas)
+    waktu_list = [
+        jam_sekarang_obj + timedelta(hours=i)
+        for i in range(10)
+    ]
+    uv_max = max(uv_list)
 
-# Teks Header Kota
-nama_kota = "SUKABUMI REGENCY"
-gambar_teks.text((80, 150), nama_kota, fill=(255, 255, 255, 120), font=font_header_lokasi)
+if uv_max <= 2:
+    kategori = "Low"
+elif uv_max <= 5:
+    kategori = "Moderate"
+elif uv_max <= 7:
+    kategori = "High"
+elif uv_max <= 10:
+    kategori = "Very High"
+else:
+    kategori = "Extreme"
 
-# Teks Utama
-rata_rata = int(sum(kelembapan_list) / len(kelembapan_list))
-cx, cy = 95, 345  
-r_drop = 11       
-
-gambar_teks.ellipse([cx - r_drop, cy - r_drop + 6, cx + r_drop, cy + r_drop + 6], fill=(255, 255, 255, 255))
-gambar_teks.polygon([(cx, cy - 18), (cx - r_drop + 1, cy + 2), (cx + r_drop - 1, cy + 2)], fill=(255, 255, 255, 255))
-
-gambar_teks.text((130, 322), "Humidity", fill=(255, 255, 255, 255), font=font_sedang)
-gambar_teks.text((80, 400), "Today's average", fill=(255, 255, 255, 150), font=font_sedang)
-gambar_teks.text((80, 470), f"{rata_rata}%", fill=(255, 255, 255, 255), font=font_SUPER_BESAR)
-
-# Grafik Batang
-layer_batang = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
-gambar_batang = ImageDraw.Draw(layer_batang)
-masker = Image.new("L", (lebar, height), 255)
-gambar_masker = ImageDraw.Draw(masker)
-
-start_x = 95
-jarak = 98
-lebar_batang = 32
-garis_bawah_y = 930    
-tinggi_maksimal = 220  
-
-for i, persen in enumerate(kelembapan_list):
-    x1 = start_x + (i * jarak)
-    x2 = x1 + lebar_batang
-    pusat_x = (x1 + x2) / 2
-    
-    tinggi_aktual = (persen / 100) * tinggi_maksimal
-    y1 = garis_bawah_y - tinggi_aktual
-    y2 = garis_bawah_y
-    
-    gambar_batang.rounded_rectangle([x1, y1, x2, y2], radius=16, fill=(240, 240, 240, 255))
-    
-    pusat_y = y1 + 16
-    r = 5
-    gambar_masker.ellipse([pusat_x - r, pusat_y - r, pusat_x + r, pusat_y + r], fill=0)
-    
-    teks_persen = f"{persen}%"
-    gambar_teks.text((pusat_x, garis_bawah_y + 30), teks_persen, fill=(255, 255, 255, 255), font=font_kecil_bold, anchor="ma")
-    
-    if i == 0:
-        label_jam = "Now"
-    else:
-        label_jam = waktu_list[i].strftime("%H.00")
-        
-    gambar_teks.text((pusat_x, garis_bawah_y + 70), label_jam, fill=(255, 255, 255, 140), font=font_kecil_regular, anchor="ma")
-
-batang_berlubang = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
-batang_berlubang.paste(layer_batang, (0, 0), mask=masker)
-kanvas.paste(batang_berlubang, (0, 0), mask=batang_berlubang)
-
-# Watermark
-wm_x_pusat = lebar / 2
-wm_y = 1220
-gambar_teks.text((wm_x_pusat - 50, wm_y), "archive by", fill=(255, 255, 255, 100), font=font_kecil_regular, anchor="ma")
-gambar_teks.text((wm_x_pusat + 60, wm_y), "Andrian", fill=(255, 255, 255, 220), font=font_kecil_bold, anchor="ma")
-
-# --- MENAMPILKAN HASIL DI WEB-APP ---
-st.image(kanvas, use_container_width=True)
-
-# Sediakan Tombol Download Gambar Langsung di Aplikasi Web
-buf = io.BytesIO()
-kanvas.save(buf, format="PNG")
-byte_im = buf.getvalue()
-
-st.download_button(
-    label="📥 Download Gambar PNG",
-    data=byte_im,
-    file_name="Grafik_Cuaca_Andrian.png",
-    mime="image/png"
+gambar_teks.text(
+    (80,720),
+    "☀ UV Index",
+    fill=(255,255,255,255),
+    font=font_sedang
 )
+
+gambar_teks.text(
+    (80,780),
+    "Today's high",
+    fill=(255,255,255,140),
+    font=font_kecil_regular
+)
+
+gambar_teks.text(
+    (80,840),
+    f"{uv_max} {kategori}",
+    fill=(255,255,255,255),
+    font=font_SUPER_BESAR
+)
+uv_start_y = 1180
+uv_bar_height = 120
+
+for i, uv in enumerate(uv_list):
+
+    x = start_x + i * jarak
+
+    if uv >= 8:
+        warna = (255,80,80,255)
+    elif uv >= 6:
+        warna = (255,165,0,255)
+    elif uv >= 3:
+        warna = (255,210,70,255)
+    elif uv > 0:
+        warna = (120,255,180,255)
+    else:
+        warna = (90,180,120,180)
+
+    tinggi = max(10, uv * 18)
+
+    gambar_teks.rounded_rectangle(
+        (
+            x,
+            uv_start_y - tinggi,
+            x + 38,
+            uv_start_y
+        ),
+        radius=20,
+        fill=warna
+    )
+
+    gambar_teks.text(
+        (x+19, uv_start_y+25),
+        str(int(uv)),
+        fill=(255,255,255),
+        anchor="ma",
+        font=font_kecil_bold
+    )
+    # Hijau
+(120,255,170,255)
+
+# Kuning
+(255,212,65,255)
+
+# Orange
+(255,145,0,255)
+
+# Merah
+(255,70,70,255)
+    
