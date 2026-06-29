@@ -1,103 +1,80 @@
 import streamlit as st
 import requests
-import math
 import io
+import math
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 
 # ==========================================
-# PAGE CONFIG
+# CONFIG & STYLE
 # ==========================================
-st.set_page_config(page_title="Weather iOS", page_icon="🌤️", layout="centered")
-st.markdown("<style>.stApp{background:#000000;} header, footer {visibility:hidden;}</style>", unsafe_allow_html=True)
+st.set_page_config(page_title="Weather iOS", layout="centered")
+st.markdown("""
+<style>
+    .stApp { background: #000000; }
+    header { visibility: hidden; }
+</style>
+""", unsafe_allow_html=True)
 
 st.title(" Weather iOS")
 if st.button("🔄 Refresh"): st.rerun()
 
 # ==========================================
-# CONSTANTS & CONFIG
-# ==========================================
-WIDTH, HEIGHT = 1080, 1920
-LATITUDE, LONGITUDE = -6.9181, 106.9266
-CITY = "SUKABUMI REGENCY"
-
-# Colors
-COLORS = {
-    "WHITE": (255, 255, 255, 255),
-    "W80": (255, 255, 255, 200),
-    "W60": (255, 255, 255, 150),
-    "W40": (255, 255, 255, 100),
-    "W20": (255, 255, 255, 40),
-    "CARD": (255, 255, 255, 18),
-    "BORDER": (255, 255, 255, 35),
-    "YELLOW": (255, 214, 10, 255),
-    "GREEN": (119, 255, 170, 255),
-    "ORANGE": (255, 150, 0, 255),
-    "RED": (255, 60, 60, 255)
-}
-
-# ==========================================
-# UTILITIES
+# FONT HELPER (Lebih besar & Jelas)
 # ==========================================
 def get_font(size):
-    try: return ImageFont.truetype("arial.ttf", size)
-    except: return ImageFont.load_default()
-
-def draw_rounded_rect(draw, xy, radius, fill, outline=None, width=2):
-    draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
-
-# ==========================================
-# DATA FETCHING
-# ==========================================
-def get_weather_data():
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={LATITUDE}&longitude={LONGITUDE}&current=temperature_2m,relative_humidity_2m,weather_code&hourly=temperature_2m,relative_humidity_2m,uv_index,weather_code&daily=sunrise,sunset&forecast_days=1&timezone=Asia/Jakarta"
     try:
-        res = requests.get(url, timeout=10).json()
-        return {
-            "temp": round(res["current"]["temperature_2m"]),
-            "hum": round(res["current"]["relative_humidity_2m"]),
-            "hums": res["hourly"]["relative_humidity_2m"][:10],
-            "temps": res["hourly"]["temperature_2m"][:10],
-            "uvs": res["hourly"]["uv_index"][:10],
-            "codes": res["hourly"]["weather_code"][:10],
-            "sunrise": res["daily"]["sunrise"][0][-5:],
-            "sunset": res["daily"]["sunset"][0][-5:]
-        }
+        # Prioritaskan font yang lebih tebal/jelas
+        return ImageFont.truetype("arial.ttf", size)
     except:
-        return {"temp": 28, "hum": 73, "hums": [70]*10, "temps": [28]*10, "uvs": [2]*10, "codes": [1]*10, "sunrise": "05:43", "sunset": "17:56"}
-
-data = get_weather_data()
+        return ImageFont.load_default()
 
 # ==========================================
-# DRAWING
+# CANVAS SETUP
 # ==========================================
+WIDTH, HEIGHT = 1080, 1920
 canvas = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-d = ImageDraw.Draw(canvas)
+draw = ImageDraw.Draw(canvas)
 
-# Header
-d.text((70, 80), CITY, fill=COLORS["W60"], font=get_font(34))
-d.text((70, 120), f"{data['temp']}°", fill=COLORS["WHITE"], font=get_font(170))
-d.text((70, 305), "Partly Cloudy", fill=COLORS["W80"], font=get_font(56))
-d.text((70, 365), f"Humidity {data['hum']}%    Sunrise {data['sunrise']}    Sunset {data['sunset']}", fill=COLORS["W60"], font=get_font(26))
-
-# Humidity Card
-draw_rounded_rect(d, (50, 450, 1030, 1050), 40, COLORS["CARD"], COLORS["BORDER"])
-d.text((120, 490), "Humidity", fill=COLORS["WHITE"], font=get_font(34))
-d.text((80, 610), f"{round(sum(data['hums'])/10)}%", fill=COLORS["WHITE"], font=get_font(120))
-
-# Hourly Forecast (Visual)
-for i, val in enumerate(data['hums']):
-    x = 90 + i * 88
-    d.rounded_rectangle((x, 940-(val*1.4), x+34, 940), radius=18, fill=(245,245,245,255))
-    d.text((x+17, 970), f"{val}%", fill=COLORS["WHITE"], font=get_font(20), anchor="ma")
-
-# Footer
-d.text((WIDTH/2, HEIGHT-25), "archive by Andrian", fill=COLORS["W40"], font=get_font(26), anchor="ms")
+# Data (Menggunakan data Anda)
+current_temp, current_humidity = 28, 73
+status = "Partly Cloudy"
+sunrise, sunset = "05:43", "17:56"
 
 # ==========================================
-# OUTPUT
+# RENDERING
+# ==========================================
+
+# 1. Header (Diperbesar)
+draw.text((70, 80), "SUKABUMI REGENCY", fill=(255,255,255,160), font=get_font(40))
+draw.text((70, 140), f"{current_temp}°", fill=(255,255,255,255), font=get_font(200))
+draw.text((70, 350), status, fill=(255,255,255,220), font=get_font(65))
+draw.text((70, 420), f"Humidity {current_humidity}%  •  Sunrise {sunrise}  •  Sunset {sunset}", fill=(255,255,255,160), font=get_font(30))
+
+# 2. Reusable Card Function
+def draw_styled_card(y_top, y_bottom, title):
+    draw.rounded_rectangle((50, y_top, WIDTH-50, y_bottom), radius=50, fill=(255,255,255,25), outline=(255,255,255,40), width=2)
+    draw.text((100, y_top + 30), title, fill=(255,255,255,255), font=get_font(40))
+
+# 3. Humidity Card
+draw_styled_card(500, 1050, "Humidity")
+draw.text((100, 600), f"{current_humidity}%", fill=(255,255,255,255), font=get_font(140))
+draw.text((100, 720), "Today's average humidity level", fill=(255,255,255,150), font=get_font(30))
+
+# 4. UV Card
+draw_styled_card(1100, 1600, "UV Index")
+draw.text((100, 1200), "5", fill=(255,255,255,255), font=get_font(140))
+draw.text((250, 1260), "Moderate", fill=(255,255,255,255), font=get_font(60))
+
+# 5. Footer
+draw.text((WIDTH/2, HEIGHT-60), "archive by Andrian", fill=(255,255,255,100), font=get_font(30), anchor="ms")
+
+# ==========================================
+# DISPLAY
 # ==========================================
 st.image(canvas, use_container_width=True)
+
+# Download
 buf = io.BytesIO()
 canvas.save(buf, format="PNG")
-st.download_button("📥 Download PNG", buf.getvalue(), "weather.png", "image/png")
+st.download_button("📥 Download PNG", buf.getvalue(), "weather_ios.png", "image/png")
