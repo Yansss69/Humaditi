@@ -40,11 +40,22 @@ lebar, height = 1080, 1350
 kanvas = Image.new("RGBA", (lebar, height), (0, 0, 0, 0))
 
 # Load Font
-font_SUPER_BESAR = ImageFont.load_default(size=160)
-font_sedang = ImageFont.load_default(size=45)
-font_kecil_bold = ImageFont.load_default(size=28)
-font_kecil_regular = ImageFont.load_default(size=26)
-font_header_lokasi = ImageFont.load_default(size=32)
+# --- Load Font dari file yang sudah di-upload di GitHub ---
+# Pastikan nama file "Inter-Bold.ttf" sesuai dengan file yang Anda upload
+try:
+    font_SUPER_BESAR = ImageFont.truetype("Inter-Bold.ttf", 160)
+    font_sedang = ImageFont.truetype("Inter-Bold.ttf", 45)
+    font_kecil_bold = ImageFont.truetype("Inter-Bold.ttf", 28)
+    font_kecil_regular = ImageFont.truetype("Inter-Bold.ttf", 26)
+    font_header_lokasi = ImageFont.truetype("Inter-Bold.ttf", 32)
+except Exception as e:
+    st.warning(f"Font tidak ditemukan: {e}. Menggunakan font default.")
+    font_SUPER_BESAR = ImageFont.load_default()
+    font_sedang = ImageFont.load_default()
+    font_kecil_bold = ImageFont.load_default()
+    font_kecil_regular = ImageFont.load_default()
+    font_header_lokasi = ImageFont.load_default()
+
 
 gambar_teks = ImageDraw.Draw(kanvas)
 
